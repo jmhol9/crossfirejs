@@ -1,9 +1,9 @@
 module.exports = {
   context: __dirname,
-  entry: "./js/main.js",
+  entry: "./crossfire/main.js",
   output: {
-    path: "./js/",
-    publicPath: "/js/",
+    path: "./crossfire/",
+    publicPath: "/crossfire/",
     filename: "bundle.js",
     devtoolModuleFilenameTemplate: '[resourcePath]',
     devtoolFallbackModuleFilenameTemplate: '[resourcePath]?[hash]'
