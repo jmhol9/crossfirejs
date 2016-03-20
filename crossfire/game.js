@@ -1,35 +1,47 @@
 var Bullet = require('./bullet');
-var Game = function ($canvas) {
+var Game = function ($canvas, shooterRight, shooterLeft, targetRight, targetLeft) {
   this.$canvas = $canvas;
   this.ctx = this.$canvas[0].getContext("2d");
+
   this.numBullets = 35;
   this.bulletArr = [];
+
   this.width = $canvas.width();
   this.height = $canvas.height();
+
+  this.shooterRight = shooterRight;
+  this.shooterLeft = shooterLeft;
+  this.targetRight = targetRight;
+  this.targetLeft = targetLeft;
+
+  this.bulletArr.push(this.targetLeft);
+  this.bulletArr.push(this.targetRight);
 };
 
 Game.prototype.addBullets = function (numBullets, options) {
   for (i = 0; i < numBullets; i++) {
     var side = ["l", "r"][Math.floor(Math.random() * 2)];
-    this.bulletArr.push(new Bullet(side, this.$canvas));
-    this.bulletArr[this.bulletArr.length - 1].vel = {
-      x: Math.floor(Math.random() * 2.5) + 0.5,
-      y: Math.floor(Math.random() * 2.5) + 0.5
-    };
-
-     this.bulletArr[this.bulletArr.length - 1].pos = {
-      x: Math.floor(Math.random() * 500) + 1,
-      y: Math.floor(Math.random() * 500) + 1
-    };
+    this.bulletArr.push(new Bullet(side, this.$canvas, options));
   }
+
+
+  // this.bulletArr[this.bulletArr.length - 1].vel = {
+  //   x: Math.random() * 5,
+  //   y: Math.random() *5
+  // };
 };
 
 // render all bullets
 Game.prototype.draw = function () {
   this.bulletArr.forEach( function (bullet) {
     bullet.draw(bullet.ctx);
-    // bullet.drawTrail(bullet.ctx);
   });
+
+  this.shooterRight.draw();
+  this.shooterLeft.draw();
+
+  this.targetRight.draw(this.targetRight.ctx);
+  this.targetLeft.draw(this.targetLeft.ctx);
 };
 
 // update positions of all bullets
@@ -40,7 +52,9 @@ Game.prototype.move = function () {
   });
 };
 
-//
+// Targets are first two objs in this.bulletArr
+// So bullets should never be "i" iterator when
+//  target is "j" iterator
 Game.prototype.checkCollisions = function () {
 
   for (i = 0; i < this.bulletArr.length; i++) {
@@ -50,9 +64,14 @@ Game.prototype.checkCollisions = function () {
       bulletTwo = this.bulletArr[j];
 
       if (bulletOne.isCollidedWith(bulletTwo)) {
-        bulletOne.objectBounce(bulletTwo);
+        if (bulletOne.target && !bulletTwo.target) {
+          bulletOne.targetBulletBounce(bulletTwo);
+        } else {
+          bulletOne.objectBounce(bulletTwo);
+        }
       }
     }
+
     bulletOne.bounceRecency++;
   }
 };

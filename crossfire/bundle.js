@@ -49,18 +49,30 @@
 	var Bullet = __webpack_require__(3);
 	var Game = __webpack_require__(4);
 	var GameView = __webpack_require__(5);
+	var Shooter = __webpack_require__(7);
+	var Target = __webpack_require__(8);
 	
 	$(function () {
+	  // get canvas & set size
 	  var $canvas = $("canvas");
-	
+	  var c = $canvas[0].getContext("2d");
 	  $canvas[0].height = $(window).height() * 0.95;
 	  $canvas[0].width = $(window).width() * 0.95;
 	
-	  var game = new Game($canvas);
-	  var gameView = new GameView(game, $canvas);
-	  gameView.start();
+	  // create shooter, game, target
+	  var shooterRight = new Shooter ("right");
+	  var shooterLeft = new Shooter ("left");
 	
+	  var targetRight = new Target ($canvas, "right");
+	  var targetLeft = new Target ($canvas, "left");
+	
+	  var game = new Game($canvas, shooterRight, shooterLeft, targetRight, targetLeft);
+	  var gameView = new GameView(game, $canvas, shooterRight, shooterLeft);
+	
+	  gameView.start();
 	});
+	
+	
 
 
 /***/ },
@@ -79,10 +91,10 @@
 	  this.$canvas = $canvas;
 	  this.ctx = $canvas[0].getContext("2d");
 	  this.pos = options.pos;
-	  this.vel = {
-	    x: -7,
-	    y: 7
-	  };
+	  this.vel = options.vel;
+	  // Apply slight vel adjustment to make aim imperfect
+	  this.vel.y += Math.random() * 0.28 - 0.14;
+	  this.vel.x += Math.random() * 0.28 - 0.14;
 	  this.radius = options.radius;
 	  this.color = options.color;
 	  this.bounceRecency = 0;
@@ -102,6 +114,9 @@
 	  };
 	
 	  MovingObject.prototype.move = function () {
+	    if (this.target) {
+	      this.decelerate();
+	    }
 	    this.pos.x += this.vel.x;
 	    this.pos.y += this.vel.y;
 	    this.bounceCheck();
@@ -169,7 +184,37 @@
 	      this.vel.y = otherObj.vel.y;
 	      otherObj.vel.y = swapY;
 	    }
+	  };
 	
+	  MovingObject.prototype.targetBulletBounce = function (bullet) {
+	    //this is a target -- only called when targets and bullets collide
+	    // bullet velocities alter target velocities by 20%
+	    if (Math.sqrt(Math.pow(bullet.vel.x, 2)) < 0.075) {
+	      bullet.vel.x *= 2;
+	    }
+	
+	    if (Math.sqrt(Math.pow(bullet.vel.y, 2)) < 0.075) {
+	      bullet.vel.y *= 2;
+	    }
+	
+	    // Target hit slows down bullet if they're going
+	    // same direction
+	    // Speeds up and reverses bullet if opposite
+	    if (this.vel.x * bullet.vel.x > 0) {
+	      bullet.vel.x *= 0.55;
+	      this.vel.x += bullet.vel.x * 0.025;
+	    } else {
+	      bullet.vel.x *= -1;
+	      this.vel.x -= bullet.vel.x * 0.005;
+	    }
+	
+	    if (this.vel.y * bullet.vel.y > 0) {
+	      bullet.vel.y *= 0.25;
+	      this.vel.y += bullet.vel.y * 0.025;
+	    } else {
+	      bullet.vel.y *= -1;
+	      this.vel.y -= bullet.vel.y * 0.005;
+	    }
 	  };
 	
 	   MovingObject.prototype.drawTrail = function (ctx) {
@@ -192,6 +237,11 @@
 	      offsetY = offsetY * 0.5;
 	      offsetX = offsetX * 0.5;
 	    }
+	  };
+	
+	  MovingObject.prototype.decelerate = function () {
+	    this.vel.x *= .99;
+	    this.vel.y *= .99;
 	  };
 	
 	
@@ -223,7 +273,7 @@
 	var MovingObject = __webpack_require__(1);
 	var Util = __webpack_require__(2);
 	
-	var Bullet = function (side, $canvas) {
+	var Bullet = function (side, $canvas, options) {
 	  this.$canvas = $canvas;
 	
 	  var bullletPos = {y: Math.floor(this.$canvas.height() / 2)};
@@ -240,7 +290,9 @@
 	    pos: bullletPos
 	  };
 	
-	  MovingObject.call(this, $canvas, defaults);
+	  options  = options || {};
+	
+	  MovingObject.call(this, $canvas, $.extend(defaults, options));
 	};
 	
 	// bullet class constants
@@ -257,37 +309,49 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var Bullet = __webpack_require__(3);
-	var Game = function ($canvas) {
+	var Game = function ($canvas, shooterRight, shooterLeft, targetRight, targetLeft) {
 	  this.$canvas = $canvas;
 	  this.ctx = this.$canvas[0].getContext("2d");
+	
 	  this.numBullets = 35;
 	  this.bulletArr = [];
+	
 	  this.width = $canvas.width();
 	  this.height = $canvas.height();
+	
+	  this.shooterRight = shooterRight;
+	  this.shooterLeft = shooterLeft;
+	  this.targetRight = targetRight;
+	  this.targetLeft = targetLeft;
+	
+	  this.bulletArr.push(this.targetLeft);
+	  this.bulletArr.push(this.targetRight);
 	};
 	
 	Game.prototype.addBullets = function (numBullets, options) {
 	  for (i = 0; i < numBullets; i++) {
 	    var side = ["l", "r"][Math.floor(Math.random() * 2)];
-	    this.bulletArr.push(new Bullet(side, this.$canvas));
-	    this.bulletArr[this.bulletArr.length - 1].vel = {
-	      x: Math.floor(Math.random() * 2.5) + 0.5,
-	      y: Math.floor(Math.random() * 2.5) + 0.5
-	    };
-	
-	     this.bulletArr[this.bulletArr.length - 1].pos = {
-	      x: Math.floor(Math.random() * 500) + 1,
-	      y: Math.floor(Math.random() * 500) + 1
-	    };
+	    this.bulletArr.push(new Bullet(side, this.$canvas, options));
 	  }
+	
+	
+	  // this.bulletArr[this.bulletArr.length - 1].vel = {
+	  //   x: Math.random() * 5,
+	  //   y: Math.random() *5
+	  // };
 	};
 	
 	// render all bullets
 	Game.prototype.draw = function () {
 	  this.bulletArr.forEach( function (bullet) {
 	    bullet.draw(bullet.ctx);
-	    // bullet.drawTrail(bullet.ctx);
 	  });
+	
+	  this.shooterRight.draw();
+	  this.shooterLeft.draw();
+	
+	  this.targetRight.draw(this.targetRight.ctx);
+	  this.targetLeft.draw(this.targetLeft.ctx);
 	};
 	
 	// update positions of all bullets
@@ -298,7 +362,9 @@
 	  });
 	};
 	
-	//
+	// Targets are first two objs in this.bulletArr
+	// So bullets should never be "i" iterator when
+	//  target is "j" iterator
 	Game.prototype.checkCollisions = function () {
 	
 	  for (i = 0; i < this.bulletArr.length; i++) {
@@ -308,9 +374,14 @@
 	      bulletTwo = this.bulletArr[j];
 	
 	      if (bulletOne.isCollidedWith(bulletTwo)) {
-	        bulletOne.objectBounce(bulletTwo);
+	        if (bulletOne.target && !bulletTwo.target) {
+	          bulletOne.targetBulletBounce(bulletTwo);
+	        } else {
+	          bulletOne.objectBounce(bulletTwo);
+	        }
 	      }
 	    }
+	
 	    bulletOne.bounceRecency++;
 	  }
 	};
@@ -326,9 +397,11 @@
 /* 5 */
 /***/ function(module, exports) {
 
-	var GameView = function (game, $canvas) {
+	var GameView = function (game, $canvas, shooterRight, shooterLeft) {
 	  this.game = game;
 	  this.$canvas = $canvas;
+	  this.shooterRight = shooterRight;
+	  this.shooterLeft = shooterLeft;
 	
 	  this.gameInterval =  function () {
 	    this.game.move();
@@ -336,7 +409,11 @@
 	    this.game.checkCollisions();
 	  };
 	
-	  this.intervalMs = 6;
+	  this.aimInterval = function (shooter, dir) {
+	    shooter.aim(dir);
+	  };
+	
+	  this.intervalMs = 8;
 	};
 	
 	GameView.prototype.start = function () {
@@ -346,25 +423,200 @@
 	};
 	
 	GameView.prototype.handleInput = function () {
+	  var rightAim = function (dir) {
+	    setInterval(this.shooterRight.aim(dir), 15);
+	    }.bind(this);
+	  var leftAim = function (dir) {
+	    setInterval(this.shooterLeft.aim(dir), 15);
+	    }.bind(this);
+	
 	  $('body').keydown( function (e) {
-	  switch (e.which) {
-	  case 65: // letter "a"
-	    this.game.addBullets(1);
-	    break;
-	  case 76:
-	    this.game.addBullets(4);
-	    break;
-	  case 8:
-	    this.game.bulletArr = [];
-	    break;
-	  default:
-	    break;
-	}
+	    switch (e.which) {
+	    case 88: // letter "x"
+	     // function () {
+	      this.game.addBullets(
+	          1,
+	          { color: '#dc322f',
+	            pos: {x: 50, y: this.$canvas.height() / 2},
+	            vel: {
+	              x: this.shooterLeft.vel.x,
+	              y: this.shooterLeft.vel.y
+	            }
+	          });
+	    //  }
+	      break;
+	    case 190: // period key
+	      this.game.addBullets(
+	        1,
+	        { color: '#268bd2',
+	          pos: {x: this.$canvas.width() - 50, y: this.$canvas.height() / 2},
+	          vel: {
+	            x: this.shooterRight.vel.x,
+	            y: this.shooterRight.vel.y
+	          }
+	        });
+	      break;
+	    case 222: // apostrophe
+	      rightAim("up");
+	      break;
+	    case 191: // the "/" key
+	      rightAim("down");
+	      break;
+	    case 65: // letter "a"
+	      leftAim("up");
+	      break;
+	    case 90: // letter "z"
+	      leftAim("down");
+	      break;
+	    case 8:
+	      this.game.bulletArr = [];
+	      break;
+	    default:
+	      break;
+	    }
 	  }.bind(this));
+	
+	  $('body').keyup( function (e) {
+	    switch (e.which) {
+	    case 222: // apostrophe
+	      clearInterval(rightAim);
+	      break;
+	    case 191: // the "/" key
+	      clearInterval(rightAim);
+	      break;
+	    case 65: // apostrophe
+	      clearInterval(leftAim);
+	      break;
+	    case 90: // the "/" key
+	      clearInterval(leftAim);
+	      break;
+	    default:
+	      break;
+	    }
+	  }.bind(this));
+	
 	};
 	
 	
 	module.exports = GameView;
+
+
+/***/ },
+/* 6 */,
+/* 7 */
+/***/ function(module, exports) {
+
+	var Shooter = function (side) {
+	  this.side = side;
+	  this.ammo = 0;
+	  this.vel = side === "right" ? {x: -3, y: 0} : {x: 3, y: 0};
+	  this.aimAngle = function () {
+	    var angle = Math.tan(this.vel.y / Math.sqrt(Math.pow(this.vel.x, 2))) * 360 / (2 * Math.PI);
+	    if (this.side === "right") {
+	      angle *= -1;
+	    }
+	
+	    return angle;
+	  };
+	  this.gun = this.side === "right" ? $('.gun-right') : $('.gun-left');
+	
+	  this.placeGun();
+	};
+	
+	Shooter.prototype.fire = function () {
+	  this.ammo--;
+	};
+	
+	Shooter.prototype.reload = function () {
+	  this.ammo++;
+	};
+	
+	// Magnitude of bullet velocity is always 3
+	// Adjust velocity vectors by incrementing vel.y +/- 0.5
+	// Then use c^2 - b^2 = a^2 to find new vel.x
+	Shooter.prototype.aim = function (dir) {
+	  var aimY = this.vel.y;
+	
+	  if (dir === "up") {
+	    aimY -= 0.25;
+	  } else if (dir === "down") {
+	    aimY += 0.25;
+	  }
+	
+	  if (aimY > 2.1) {
+	    aimY = 2.1;
+	  } else if (aimY < -2.1) {
+	    aimY = -2.1;
+	  }
+	
+	  var aimX = Math.sqrt(9 - Math.pow(aimY, 2));
+	
+	  aimX = this.side === "right" ? aimX * -1 : aimX;
+	
+	  this.vel = { x: aimX, y: aimY };
+	};
+	
+	Shooter.prototype.draw = function () {
+	  this.gun.css('transform',
+	    'rotate(' + this.aimAngle() + 'deg)');
+	};
+	
+	Shooter.prototype.placeGun = function () {
+	  this.gun.css('position', 'absolute');
+	  this.gun.css(this.side, '20px');
+	  this.gun.css('top', '50%');
+	  if (this.side === "right") {
+	    this.gun.css('-webkit-transform', 'scaleX(-1)');
+	  }
+	};
+	
+	module.exports = Shooter;
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var MovingObject = __webpack_require__(1);
+	var Util = __webpack_require__(2);
+	
+	var Target = function ($canvas, side) {
+	  this.$canvas = $canvas;
+	  this.ctx = $canvas[0].getContext("2d");
+	  this.side = side;
+	  this.target = true;
+	
+	  var defaults = {
+	    radius: 45,
+	    vel: {x: 0, y: 0}
+	  };
+	
+	  if (this.side === "right") {
+	    this.color = "#268bd2";
+	    defaults.color = "#268bd2";
+	    defaults.pos = {
+	      x: this.$canvas.width() / 2,
+	      y: this.$canvas.height() / 4
+	    };
+	  } else if (this.side === "left") {
+	    this.color = "#dc322f";
+	    defaults.color = "#dc322f";
+	    defaults.pos = {
+	      x: this.$canvas.width() / 2,
+	      y: this.$canvas.height() * 3 / 4
+	    };
+	  }
+	
+	
+	  MovingObject.call(this, $canvas, defaults);
+	};
+	
+	Util.inherits(Target, MovingObject);
+	
+	
+	
+	module.exports = Target;
+	
 
 
 /***/ }

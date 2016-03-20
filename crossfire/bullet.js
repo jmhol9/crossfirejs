@@ -1,7 +1,7 @@
 var MovingObject = require('./moving_object');
 var Util = require('./util');
 
-var Bullet = function (side, $canvas) {
+var Bullet = function (side, $canvas, options) {
   this.$canvas = $canvas;
 
   var bullletPos = {y: Math.floor(this.$canvas.height() / 2)};
@@ -18,7 +18,9 @@ var Bullet = function (side, $canvas) {
     pos: bullletPos
   };
 
-  MovingObject.call(this, $canvas, defaults);
+  options  = options || {};
+
+  MovingObject.call(this, $canvas, $.extend(defaults, options));
 };
 
 // bullet class constants

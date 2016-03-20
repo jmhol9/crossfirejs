@@ -10,10 +10,10 @@ var MovingObject = function ($canvas, options) {
   this.$canvas = $canvas;
   this.ctx = $canvas[0].getContext("2d");
   this.pos = options.pos;
-  this.vel = {
-    x: -7,
-    y: 7
-  };
+  this.vel = options.vel;
+  // Apply slight vel adjustment to make aim imperfect
+  this.vel.y += Math.random() * 0.28 - 0.14;
+  this.vel.x += Math.random() * 0.28 - 0.14;
   this.radius = options.radius;
   this.color = options.color;
   this.bounceRecency = 0;
@@ -33,6 +33,9 @@ var MovingObject = function ($canvas, options) {
   };
 
   MovingObject.prototype.move = function () {
+    if (this.target) {
+      this.decelerate();
+    }
     this.pos.x += this.vel.x;
     this.pos.y += this.vel.y;
     this.bounceCheck();
@@ -100,7 +103,37 @@ var MovingObject = function ($canvas, options) {
       this.vel.y = otherObj.vel.y;
       otherObj.vel.y = swapY;
     }
+  };
 
+  MovingObject.prototype.targetBulletBounce = function (bullet) {
+    //this is a target -- only called when targets and bullets collide
+    // bullet velocities alter target velocities by 20%
+    if (Math.sqrt(Math.pow(bullet.vel.x, 2)) < 0.075) {
+      bullet.vel.x *= 2;
+    }
+
+    if (Math.sqrt(Math.pow(bullet.vel.y, 2)) < 0.075) {
+      bullet.vel.y *= 2;
+    }
+
+    // Target hit slows down bullet if they're going
+    // same direction
+    // Speeds up and reverses bullet if opposite
+    if (this.vel.x * bullet.vel.x > 0) {
+      bullet.vel.x *= 0.55;
+      this.vel.x += bullet.vel.x * 0.025;
+    } else {
+      bullet.vel.x *= -1;
+      this.vel.x -= bullet.vel.x * 0.005;
+    }
+
+    if (this.vel.y * bullet.vel.y > 0) {
+      bullet.vel.y *= 0.25;
+      this.vel.y += bullet.vel.y * 0.025;
+    } else {
+      bullet.vel.y *= -1;
+      this.vel.y -= bullet.vel.y * 0.005;
+    }
   };
 
    MovingObject.prototype.drawTrail = function (ctx) {
@@ -123,6 +156,11 @@ var MovingObject = function ($canvas, options) {
       offsetY = offsetY * 0.5;
       offsetX = offsetX * 0.5;
     }
+  };
+
+  MovingObject.prototype.decelerate = function () {
+    this.vel.x *= .99;
+    this.vel.y *= .99;
   };
 
 
