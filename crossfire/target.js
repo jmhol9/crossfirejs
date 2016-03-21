@@ -16,14 +16,14 @@ var Target = function ($canvas, side) {
     this.color = "#268bd2";
     defaults.color = "#268bd2";
     defaults.pos = {
-      x: this.$canvas.width() / 2,
+      x: this.$canvas.width() * 0.7,
       y: this.$canvas.height() / 4
     };
   } else if (this.side === "left") {
     this.color = "#dc322f";
     defaults.color = "#dc322f";
     defaults.pos = {
-      x: this.$canvas.width() / 2,
+      x: this.$canvas.width() * 0.3,
       y: this.$canvas.height() * 3 / 4
     };
   }
