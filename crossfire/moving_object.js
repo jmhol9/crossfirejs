@@ -107,32 +107,30 @@ var MovingObject = function ($canvas, options) {
 
   MovingObject.prototype.targetBulletBounce = function (bullet) {
     //this is a target -- only called when targets and bullets collide
-    // bullet velocities alter target velocities by 20%
-    if (Math.sqrt(Math.pow(bullet.vel.x, 2)) < 0.075) {
-      bullet.vel.x *= 2;
-    }
 
-    if (Math.sqrt(Math.pow(bullet.vel.y, 2)) < 0.075) {
-      bullet.vel.y *= 2;
-    }
+    // adjust target velocity by a small factor
+    // base on bullet velocity
+    this.vel.x += bullet.vel.x * 0.035;
+    this.vel.y += bullet.vel.y * 0.035;
 
-    // Target hit slows down bullet if they're going
-    // same direction
-    // Speeds up and reverses bullet if opposite
-    if (this.vel.x * bullet.vel.x > 0) {
-      bullet.vel.x *= 0.55;
-      this.vel.x += bullet.vel.x * 0.025;
-    } else {
+    // bullets are completely elastic
+    // quick and dirty solution: calculate difference
+    // in position of circle centers to determine if collision
+    // is on side or on top -- then reverse bullet's vel.y or vel.x accordingly
+    // Reverse bullet velocities if same direction as target
+    // Simulates "bouncing off"
+    var yDiff = Math.sqrt(Math.pow(this.pos.y - bullet.pos.y, 2));
+    if (yDiff < .80 * this.radius) {
       bullet.vel.x *= -1;
-      this.vel.x -= bullet.vel.x * 0.005;
-    }
-
-    if (this.vel.y * bullet.vel.y > 0) {
-      bullet.vel.y *= 0.25;
-      this.vel.y += bullet.vel.y * 0.025;
     } else {
       bullet.vel.y *= -1;
-      this.vel.y -= bullet.vel.y * 0.005;
+    }
+
+    // attempt to remove bullet from inside of circle
+    var i = 0;
+    while (this.isCollidedWith(bullet) && i < 5) {
+      bullet.move();
+      i++;
     }
   };
 
@@ -159,8 +157,8 @@ var MovingObject = function ($canvas, options) {
   };
 
   MovingObject.prototype.decelerate = function () {
-    this.vel.x *= .99;
-    this.vel.y *= .99;
+    this.vel.x *= .997;
+    this.vel.y *= .997;
   };
 
 

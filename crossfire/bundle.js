@@ -49,11 +49,12 @@
 	var Bullet = __webpack_require__(3);
 	var Game = __webpack_require__(4);
 	var GameView = __webpack_require__(5);
-	var Shooter = __webpack_require__(7);
-	var Target = __webpack_require__(8);
+	var Shooter = __webpack_require__(6);
+	var Target = __webpack_require__(7);
 	
 	$(function () {
 	  // get canvas & set size
+	  $('body').css("background-color", "#002b36");
 	  var $canvas = $("canvas");
 	  var c = $canvas[0].getContext("2d");
 	  $canvas[0].height = $(window).height() * 0.95;
@@ -188,32 +189,30 @@
 	
 	  MovingObject.prototype.targetBulletBounce = function (bullet) {
 	    //this is a target -- only called when targets and bullets collide
-	    // bullet velocities alter target velocities by 20%
-	    if (Math.sqrt(Math.pow(bullet.vel.x, 2)) < 0.075) {
-	      bullet.vel.x *= 2;
-	    }
 	
-	    if (Math.sqrt(Math.pow(bullet.vel.y, 2)) < 0.075) {
-	      bullet.vel.y *= 2;
-	    }
+	    // adjust target velocity by a small factor
+	    // base on bullet velocity
+	    this.vel.x += bullet.vel.x * 0.035;
+	    this.vel.y += bullet.vel.y * 0.035;
 	
-	    // Target hit slows down bullet if they're going
-	    // same direction
-	    // Speeds up and reverses bullet if opposite
-	    if (this.vel.x * bullet.vel.x > 0) {
-	      bullet.vel.x *= 0.55;
-	      this.vel.x += bullet.vel.x * 0.025;
-	    } else {
+	    // bullets are completely elastic
+	    // quick and dirty solution: calculate difference
+	    // in position of circle centers to determine if collision
+	    // is on side or on top -- then reverse bullet's vel.y or vel.x accordingly
+	    // Reverse bullet velocities if same direction as target
+	    // Simulates "bouncing off"
+	    var yDiff = Math.sqrt(Math.pow(this.pos.y - bullet.pos.y, 2));
+	    if (yDiff < .80 * this.radius) {
 	      bullet.vel.x *= -1;
-	      this.vel.x -= bullet.vel.x * 0.005;
-	    }
-	
-	    if (this.vel.y * bullet.vel.y > 0) {
-	      bullet.vel.y *= 0.25;
-	      this.vel.y += bullet.vel.y * 0.025;
 	    } else {
 	      bullet.vel.y *= -1;
-	      this.vel.y -= bullet.vel.y * 0.005;
+	    }
+	
+	    // attempt to remove bullet from inside of circle
+	    var i = 0;
+	    while (this.isCollidedWith(bullet) && i < 5) {
+	      bullet.move();
+	      i++;
 	    }
 	  };
 	
@@ -240,8 +239,8 @@
 	  };
 	
 	  MovingObject.prototype.decelerate = function () {
-	    this.vel.x *= .99;
-	    this.vel.y *= .99;
+	    this.vel.x *= .997;
+	    this.vel.y *= .997;
 	  };
 	
 	
@@ -324,6 +323,7 @@
 	  this.targetRight = targetRight;
 	  this.targetLeft = targetLeft;
 	
+	
 	  this.bulletArr.push(this.targetLeft);
 	  this.bulletArr.push(this.targetRight);
 	};
@@ -341,14 +341,37 @@
 	  // };
 	};
 	
+	Game.prototype.drawGrid = function (ctx) {
+	    var spacing = 25;
+	    var i;
+	    for (i = 0; i < Math.ceil(this.$canvas.width() / spacing); i++) {
+	      var x = spacing * i;
+	      ctx.moveTo(x, 0);
+	      ctx.lineTo(x, this.$canvas.height());
+	      ctx.strokeStyle = '#586e75';
+	      ctx.lineWidth = 1;
+	      ctx.stroke();
+	    }
+	    // for (i = 0; i < Math.ceil(this.$canvas.height() / spacing); i++) {
+	    //   var y = spacing * i;
+	    //   ctx.moveTo(0, y);
+	    //   ctx.lineTo(this.$canvas.width(), y);
+	    //   ctx.strokeStyle = '#EEEEEE';
+	    //   ctx.lineWidth = 1;
+	    //   ctx.stroke();
+	    // }
+	  };
+	
 	// render all bullets
 	Game.prototype.draw = function () {
+	  this.drawGrid(this.ctx);
 	  this.bulletArr.forEach( function (bullet) {
 	    bullet.draw(bullet.ctx);
 	  });
 	
 	  this.shooterRight.draw();
 	  this.shooterLeft.draw();
+	
 	
 	  this.targetRight.draw(this.targetRight.ctx);
 	  this.targetLeft.draw(this.targetLeft.ctx);
@@ -468,7 +491,7 @@
 	    case 90: // letter "z"
 	      leftAim("down");
 	      break;
-	    case 8:
+	    case 48:
 	      this.game.bulletArr = [];
 	      break;
 	    default:
@@ -502,8 +525,7 @@
 
 
 /***/ },
-/* 6 */,
-/* 7 */
+/* 6 */
 /***/ function(module, exports) {
 
 	var Shooter = function (side) {
@@ -574,7 +596,7 @@
 
 
 /***/ },
-/* 8 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var MovingObject = __webpack_require__(1);
@@ -612,6 +634,7 @@
 	};
 	
 	Util.inherits(Target, MovingObject);
+	
 	
 	
 	

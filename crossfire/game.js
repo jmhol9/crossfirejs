@@ -14,6 +14,7 @@ var Game = function ($canvas, shooterRight, shooterLeft, targetRight, targetLeft
   this.targetRight = targetRight;
   this.targetLeft = targetLeft;
 
+
   this.bulletArr.push(this.targetLeft);
   this.bulletArr.push(this.targetRight);
 };
@@ -31,14 +32,37 @@ Game.prototype.addBullets = function (numBullets, options) {
   // };
 };
 
+Game.prototype.drawGrid = function (ctx) {
+    var spacing = 25;
+    var i;
+    for (i = 0; i < Math.ceil(this.$canvas.width() / spacing); i++) {
+      var x = spacing * i;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.$canvas.height());
+      ctx.strokeStyle = '#586e75';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    // for (i = 0; i < Math.ceil(this.$canvas.height() / spacing); i++) {
+    //   var y = spacing * i;
+    //   ctx.moveTo(0, y);
+    //   ctx.lineTo(this.$canvas.width(), y);
+    //   ctx.strokeStyle = '#EEEEEE';
+    //   ctx.lineWidth = 1;
+    //   ctx.stroke();
+    // }
+  };
+
 // render all bullets
 Game.prototype.draw = function () {
+  this.drawGrid(this.ctx);
   this.bulletArr.forEach( function (bullet) {
     bullet.draw(bullet.ctx);
   });
 
   this.shooterRight.draw();
   this.shooterLeft.draw();
+
 
   this.targetRight.draw(this.targetRight.ctx);
   this.targetLeft.draw(this.targetLeft.ctx);

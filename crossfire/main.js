@@ -8,6 +8,7 @@ var Target = require('./target');
 
 $(function () {
   // get canvas & set size
+  $('body').css("background-color", "#002b36");
   var $canvas = $("canvas");
   var c = $canvas[0].getContext("2d");
   $canvas[0].height = $(window).height() * 0.95;

@@ -69,7 +69,7 @@ GameView.prototype.handleInput = function () {
     case 90: // letter "z"
       leftAim("down");
       break;
-    case 8:
+    case 48:
       this.game.bulletArr = [];
       break;
     default:
