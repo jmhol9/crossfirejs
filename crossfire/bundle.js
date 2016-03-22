@@ -60,7 +60,7 @@
 	    $canvas[0].height = $(window).height() * 0.95;
 	    $canvas[0].width = $(window).width() * 0.95;
 	
-	    // create shooter, game, target
+	    // // create shooter, game, target
 	    var shooterRight = new Shooter("right");
 	    var shooterLeft = new Shooter("left");
 	
@@ -92,11 +92,16 @@
 	    this.pos = options.pos;
 	    this.vel = options.vel;
 	    // Apply slight vel adjustment to make aim imperfect
-	    this.vel.y += Math.random() * 0.28 - 0.14;
-	    this.vel.x += Math.random() * 0.28 - 0.14;
+	    this.vel.y += Math.random() * 0.40 - 0.20;
+	    this.vel.x += Math.random() * 0.40 - 0.20;
 	    this.radius = options.radius;
 	    this.color = options.color;
+	    //increments on each bounce check; must clear
+	    //some number to allow another bounce
 	    this.bounceRecency = 0;
+	    //outOfBounds set to true when off canvas; cleared
+	    // from game.bulletArr on next bounceCheck iteration
+	    this.outOfBounds = false;
 	};
 	
 	MovingObject.prototype.draw = function(ctx) {
@@ -118,24 +123,29 @@
 	    }
 	    this.pos.x += this.vel.x;
 	    this.pos.y += this.vel.y;
-	    this.bounceCheck();
 	};
 	
-	MovingObject.prototype.bounceCheck = function() {
-	    if (this.pos.x + this.radius >= this.$canvas.width()) {
-	        this.pos.x = this.$canvas.width() - this.radius;
-	        // this.vel.x *= -1;
-	        this.bounce("x");
-	    } else if (this.pos.x - this.radius <= 0) {
-	        this.pos.x = this.radius;
-	        this.bounce("x");
+	MovingObject.prototype.bounceCheck = function(bufferSize) {
+	    // if position invalid on X-axis, object is out of bounds
+	    // will be removed from game.bulletArr after bounce.check
+	    if (this.pos.x - this.radius >= this.$canvas.width()) {
+	        this.outOfBounds = true;
+	    } else if (this.pos.x + this.radius <= 0) {
+	        this.outOfBounds = true;
 	    }
 	
-	    if (this.pos.y + this.radius >= this.$canvas.height()) {
-	        this.pos.y = this.$canvas.height() - this.radius;
+	    // for y axis bounces, calculate buffer height at bullet.pos.x
+	    // See if bullet pos.y is low/high enough to trigger bounce
+	    var halfCtxWidth = this.$canvas.width() / 2;
+	    var ctxHeight = this.$canvas.height();
+	    var bufferHeight = (Math.abs(this.pos.x - halfCtxWidth) / halfCtxWidth) * (bufferSize * ctxHeight);
+	
+	    // if position invalid on Y axis, trigger Y-axis bounce
+	    if (this.pos.y + this.radius >= ctxHeight - bufferHeight) {
+	        this.pos.y = this.$canvas.height() - this.radius  - bufferHeight;
 	        this.bounce("y");
-	    } else if (this.pos.y - this.radius <= 0) {
-	        this.pos.y = this.radius;
+	    } else if (this.pos.y - this.radius <= bufferHeight) {
+	        this.pos.y = this.radius + bufferHeight;
 	        this.bounce("y");
 	    }
 	};
@@ -312,17 +322,24 @@
 	    this.$canvas = $canvas;
 	    this.ctx = this.$canvas[0].getContext("2d");
 	
-	    this.numBullets = 35;
+	    this.numBullets = 35
 	    this.bulletArr = [];
+	
+	    // Indicates percent of Y-axis exits blocked by
+	    // buffers. Eg, with two 25% buffers, 50% of each
+	    // exit will be blocked.
+	    this.bufferHeight = 0.25;
 	
 	    this.width = $canvas.width();
 	    this.height = $canvas.height();
 	
 	    this.shooterRight = shooterRight;
 	    this.shooterLeft = shooterLeft;
+	    this.shooterRight.draw();
+	    this.shooterLeft.draw();
+	
 	    this.targetRight = targetRight;
 	    this.targetLeft = targetLeft;
-	
 	
 	    this.bulletArr.push(this.targetLeft);
 	    this.bulletArr.push(this.targetRight);
@@ -333,14 +350,9 @@
 	        var side = ["l", "r"][Math.floor(Math.random() * 2)];
 	        this.bulletArr.push(new Bullet(side, this.$canvas, options));
 	    }
-	
-	
-	    // this.bulletArr[this.bulletArr.length - 1].vel = {
-	    //   x: Math.random() * 5,
-	    //   y: Math.random() *5
-	    // };
 	};
 	
+	// Draw vertical grid in background of canvas
 	Game.prototype.drawGrid = function(ctx) {
 	    var spacing = 25;
 	    var i;
@@ -348,30 +360,21 @@
 	        var x = spacing * i;
 	        ctx.moveTo(x, 0);
 	        ctx.lineTo(x, this.$canvas.height());
-	        ctx.strokeStyle = '#586e75';
+	        ctx.strokeStyle = '#b58900';
 	        ctx.lineWidth = 1;
 	        ctx.stroke();
 	    }
-	    // for (i = 0; i < Math.ceil(this.$canvas.height() / spacing); i++) {
-	    //   var y = spacing * i;
-	    //   ctx.moveTo(0, y);
-	    //   ctx.lineTo(this.$canvas.width(), y);
-	    //   ctx.strokeStyle = '#EEEEEE';
-	    //   ctx.lineWidth = 1;
-	    //   ctx.stroke();
-	    // }
 	};
 	
 	// render all bullets
 	Game.prototype.draw = function() {
 	    this.drawGrid(this.ctx);
+	    this.drawBuffers();
 	    this.bulletArr.forEach(function(bullet) {
 	        bullet.draw(bullet.ctx);
 	    });
 	
-	    this.shooterRight.draw();
-	    this.shooterLeft.draw();
-	
+	    this.updateShooters();
 	
 	    this.targetRight.draw(this.targetRight.ctx);
 	    this.targetLeft.draw(this.targetLeft.ctx);
@@ -380,9 +383,13 @@
 	// update positions of all bullets
 	Game.prototype.move = function() {
 	    this.ctx.clearRect(0, 0, this.width, this.height);
-	    this.bulletArr.forEach(function(bullet) {
+	    this.bulletArr.forEach(function(bullet, idx) {
 	        bullet.move();
-	    });
+	        bullet.bounceCheck(this.bufferHeight);
+	        if (bullet.outOfBounds === true) {
+	            this.bulletArr.splice(idx, 1);
+	        }
+	    }.bind(this));
 	};
 	
 	// Targets are first two objs in this.bulletArr
@@ -409,9 +416,38 @@
 	    }
 	};
 	
+	Game.prototype.updateShooters = function () {
+	    [this.shooterRight, this.shooterLeft].forEach (function (shooter) {
+	        if (shooter.aimUp === true) {
+	            shooter.aim("up");
+	        } else if (shooter.aimDown === true) {
+	            shooter.aim("down");
+	        }
+	    });
+	};
 	
+	Game.prototype.drawBuffers = function () {
+	    this.ctx.fillStyle = '#b58900';
+	    this.ctx.moveTo(0, 0);
+	    this.ctx.lineTo(0, this.$canvas.height() * this.bufferHeight);
+	    this.ctx.lineTo(this.$canvas.width() / 2, 0);
+	    this.ctx.fill();
 	
+	    this.ctx.moveTo(0, this.$canvas.height());
+	    this.ctx.lineTo(0, this.$canvas.height() - this.bufferHeight * this.$canvas.height());
+	    this.ctx.lineTo(this.$canvas.width() / 2, this.$canvas.height());
+	    this.ctx.fill();
 	
+	    this.ctx.moveTo(this.$canvas.width(), this.$canvas.height());
+	    this.ctx.lineTo(this.$canvas.width(), this.$canvas.height() - this.bufferHeight * this.$canvas.height());
+	    this.ctx.lineTo(this.$canvas.width() / 2, this.$canvas.height());
+	    this.ctx.fill();
+	
+	    this.ctx.moveTo(this.$canvas.width(), 0);
+	    this.ctx.lineTo(this.$canvas.width(), this.bufferHeight * this.$canvas.height());
+	    this.ctx.lineTo(this.$canvas.width() / 2, 0);
+	    this.ctx.fill();
+	};
 	
 	module.exports = Game;
 
@@ -480,16 +516,16 @@
 	                    });
 	                break;
 	            case 222: // apostrophe
-	                rightAim("up");
+	                this.shooterRight.aimUp = true;
 	                break;
 	            case 191: // the "/" key
-	                rightAim("down");
+	                this.shooterRight.aimDown = true;
 	                break;
 	            case 65: // letter "a"
-	                leftAim("up");
+	                this.shooterLeft.aimUp = true;
 	                break;
 	            case 90: // letter "z"
-	                leftAim("down");
+	                this.shooterLeft.aimDown = true;
 	                break;
 	            case 48:
 	                this.game.bulletArr = [];
@@ -502,16 +538,16 @@
 	    $('body').keyup(function(e) {
 	        switch (e.which) {
 	            case 222: // apostrophe
-	                clearInterval(rightAim);
+	                this.shooterRight.aimUp = false;
 	                break;
 	            case 191: // the "/" key
-	                clearInterval(rightAim);
+	                this.shooterRight.aimDown = false;
 	                break;
-	            case 65: // apostrophe
-	                clearInterval(leftAim);
+	            case 65: // letter "a"
+	                this.shooterLeft.aimUp = false;
 	                break;
-	            case 90: // the "/" key
-	                clearInterval(leftAim);
+	            case 90: // letter "z"
+	                this.shooterLeft.aimDown = false;
 	                break;
 	            default:
 	                break;
@@ -541,6 +577,8 @@
 	        return angle;
 	    };
 	    this.gun = this.side === "right" ? $('.gun-right') : $('.gun-left');
+	    this.aimUp = false;
+	    this.aimDown = false;
 	
 	    this.placeGun();
 	};
@@ -560,15 +598,15 @@
 	    var aimY = this.vel.y;
 	
 	    if (dir === "up") {
-	        aimY -= 0.25;
+	        aimY -= 0.05;
 	    } else if (dir === "down") {
-	        aimY += 0.25;
+	        aimY += 0.05;
 	    }
 	
-	    if (aimY > 2.1) {
-	        aimY = 2.1;
-	    } else if (aimY < -2.1) {
-	        aimY = -2.1;
+	    if (aimY > 2.2) {
+	        aimY = 2.2;
+	    } else if (aimY < -2.2) {
+	        aimY = -2.2;
 	    }
 	
 	    var aimX = Math.sqrt(9 - Math.pow(aimY, 2));
@@ -576,6 +614,8 @@
 	    aimX = this.side === "right" ? aimX * -1 : aimX;
 	
 	    this.vel = { x: aimX, y: aimY };
+	
+	    this.draw();
 	};
 	
 	Shooter.prototype.draw = function() {
@@ -609,7 +649,7 @@
 	  this.target = true;
 	
 	  var defaults = {
-	    radius: 45,
+	    radius: 40,
 	    vel: {x: 0, y: 0}
 	  };
 	

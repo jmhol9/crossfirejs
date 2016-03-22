@@ -14,7 +14,7 @@ $(function() {
     $canvas[0].height = $(window).height() * 0.95;
     $canvas[0].width = $(window).width() * 0.95;
 
-    // create shooter, game, target
+    // // create shooter, game, target
     var shooterRight = new Shooter("right");
     var shooterLeft = new Shooter("left");
 

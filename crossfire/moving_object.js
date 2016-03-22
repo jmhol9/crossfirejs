@@ -12,11 +12,16 @@ var MovingObject = function($canvas, options) {
     this.pos = options.pos;
     this.vel = options.vel;
     // Apply slight vel adjustment to make aim imperfect
-    this.vel.y += Math.random() * 0.28 - 0.14;
-    this.vel.x += Math.random() * 0.28 - 0.14;
+    this.vel.y += Math.random() * 0.40 - 0.20;
+    this.vel.x += Math.random() * 0.40 - 0.20;
     this.radius = options.radius;
     this.color = options.color;
+    //increments on each bounce check; must clear
+    //some number to allow another bounce
     this.bounceRecency = 0;
+    //outOfBounds set to true when off canvas; cleared
+    // from game.bulletArr on next bounceCheck iteration
+    this.outOfBounds = false;
 };
 
 MovingObject.prototype.draw = function(ctx) {
@@ -38,24 +43,29 @@ MovingObject.prototype.move = function() {
     }
     this.pos.x += this.vel.x;
     this.pos.y += this.vel.y;
-    this.bounceCheck();
 };
 
-MovingObject.prototype.bounceCheck = function() {
-    if (this.pos.x + this.radius >= this.$canvas.width()) {
-        this.pos.x = this.$canvas.width() - this.radius;
-        // this.vel.x *= -1;
-        this.bounce("x");
-    } else if (this.pos.x - this.radius <= 0) {
-        this.pos.x = this.radius;
-        this.bounce("x");
+MovingObject.prototype.bounceCheck = function(bufferSize) {
+    // if position invalid on X-axis, object is out of bounds
+    // will be removed from game.bulletArr after bounce.check
+    if (this.pos.x - this.radius >= this.$canvas.width()) {
+        this.outOfBounds = true;
+    } else if (this.pos.x + this.radius <= 0) {
+        this.outOfBounds = true;
     }
 
-    if (this.pos.y + this.radius >= this.$canvas.height()) {
-        this.pos.y = this.$canvas.height() - this.radius;
+    // for y axis bounces, calculate buffer height at bullet.pos.x
+    // See if bullet pos.y is low/high enough to trigger bounce
+    var halfCtxWidth = this.$canvas.width() / 2;
+    var ctxHeight = this.$canvas.height();
+    var bufferHeight = (Math.abs(this.pos.x - halfCtxWidth) / halfCtxWidth) * (bufferSize * ctxHeight);
+
+    // if position invalid on Y axis, trigger Y-axis bounce
+    if (this.pos.y + this.radius >= ctxHeight - bufferHeight) {
+        this.pos.y = this.$canvas.height() - this.radius  - bufferHeight;
         this.bounce("y");
-    } else if (this.pos.y - this.radius <= 0) {
-        this.pos.y = this.radius;
+    } else if (this.pos.y - this.radius <= bufferHeight) {
+        this.pos.y = this.radius + bufferHeight;
         this.bounce("y");
     }
 };

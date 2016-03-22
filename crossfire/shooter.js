@@ -11,6 +11,8 @@ var Shooter = function(side) {
         return angle;
     };
     this.gun = this.side === "right" ? $('.gun-right') : $('.gun-left');
+    this.aimUp = false;
+    this.aimDown = false;
 
     this.placeGun();
 };
@@ -30,15 +32,15 @@ Shooter.prototype.aim = function(dir) {
     var aimY = this.vel.y;
 
     if (dir === "up") {
-        aimY -= 0.25;
+        aimY -= 0.05;
     } else if (dir === "down") {
-        aimY += 0.25;
+        aimY += 0.05;
     }
 
-    if (aimY > 2.1) {
-        aimY = 2.1;
-    } else if (aimY < -2.1) {
-        aimY = -2.1;
+    if (aimY > 2.2) {
+        aimY = 2.2;
+    } else if (aimY < -2.2) {
+        aimY = -2.2;
     }
 
     var aimX = Math.sqrt(9 - Math.pow(aimY, 2));
@@ -46,6 +48,8 @@ Shooter.prototype.aim = function(dir) {
     aimX = this.side === "right" ? aimX * -1 : aimX;
 
     this.vel = { x: aimX, y: aimY };
+
+    this.draw();
 };
 
 Shooter.prototype.draw = function() {

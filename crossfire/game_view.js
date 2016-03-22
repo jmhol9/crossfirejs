@@ -58,16 +58,16 @@ GameView.prototype.handleInput = function() {
                     });
                 break;
             case 222: // apostrophe
-                rightAim("up");
+                this.shooterRight.aimUp = true;
                 break;
             case 191: // the "/" key
-                rightAim("down");
+                this.shooterRight.aimDown = true;
                 break;
             case 65: // letter "a"
-                leftAim("up");
+                this.shooterLeft.aimUp = true;
                 break;
             case 90: // letter "z"
-                leftAim("down");
+                this.shooterLeft.aimDown = true;
                 break;
             case 48:
                 this.game.bulletArr = [];
@@ -80,16 +80,16 @@ GameView.prototype.handleInput = function() {
     $('body').keyup(function(e) {
         switch (e.which) {
             case 222: // apostrophe
-                clearInterval(rightAim);
+                this.shooterRight.aimUp = false;
                 break;
             case 191: // the "/" key
-                clearInterval(rightAim);
+                this.shooterRight.aimDown = false;
                 break;
-            case 65: // apostrophe
-                clearInterval(leftAim);
+            case 65: // letter "a"
+                this.shooterLeft.aimUp = false;
                 break;
-            case 90: // the "/" key
-                clearInterval(leftAim);
+            case 90: // letter "z"
+                this.shooterLeft.aimDown = false;
                 break;
             default:
                 break;

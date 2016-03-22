@@ -8,7 +8,7 @@ var Target = function ($canvas, side) {
   this.target = true;
 
   var defaults = {
-    radius: 45,
+    radius: 40,
     vel: {x: 0, y: 0}
   };
 
